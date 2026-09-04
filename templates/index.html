@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<body class="table-page">
 
 <header class="topbar">
   <div class="brand">
@@ -31,11 +31,11 @@
   <div class="tool-row">
     <span class="hint">表格可左右/上下滑动，地区列和表头固定。点「编辑」改任意一列。</span>
     <div class="ops">
+      <button class="btn ghost" id="view-toggle" type="button">📱 手机版</button>
       <button class="btn ghost" id="add-btn" type="button">＋ 新增小区</button>
     </div>
   </div>
   <div class="table-wrap" id="table-wrap"></div>
-  <p class="footer-note">看房视频可在表格里直接传（每行视频列的「传视频」），也可以去<a href="/upload" style="color:var(--accent)">上传页</a>。</p>
 </main>
 
 <script src="/static/common.js"></script>

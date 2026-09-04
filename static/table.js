@@ -112,7 +112,8 @@
       parts.push(
         "<div>" +
         (v.label ? '<div class="dim">' + esc(v.label) + "</div>" : "") +
-        '<video controls preload="none" playsinline src="' + v.url + '"></video>' +
+        '<div class="vwrap"><video controls preload="none" playsinline src="' + v.url + '"></video>' +
+        '<button class="vfs" data-fs-vid title="放大播放">⤢</button></div>' +
         '<div class="vmeta"><span>' + esc(v.orig_name) + " · " + HouseApp.fmtSize(v.size) + "</span>" +
         '<button class="del" data-del-vid="' + v.id + '">删除</button></div></div>'
       );
@@ -126,31 +127,155 @@
   function render() {
     initChips();
     var shown = houses.filter(match);
+    var mobile = isMobile();
     countEl.textContent = "共 " + shown.length + " / " + houses.length + " 个小区";
+    var toggle = document.getElementById("view-toggle");
+    if (toggle) toggle.textContent = mobile ? "🖥 电脑版" : "📱 手机版";
+    var hint = document.querySelector(".tool-row .hint");
+    if (hint) hint.textContent = mobile
+      ? "手机版：按地区分组，点小区名看详情和视频。"
+      : "表格可左右/上下滑动，地区列和表头固定。点「编辑」改任意一列。";
+    listEl.classList.toggle("cards-mode", mobile);
     if (!shown.length) {
       listEl.innerHTML = '<div class="empty">没有符合条件的小区，换个筛选试试。</div>';
       return;
     }
+    if (mobile) renderCards(shown);
+    else renderTable(shown);
+  }
+
+  /** 视图模式：auto=按屏宽自适应；pc/mobile=手动指定（记住选择） */
+  var viewPref = "auto";
+  try { viewPref = localStorage.getItem("house_view") || "auto"; } catch (e) {}
+
+  /** 是否用手机端卡片样式 */
+  function isMobile() {
+    if (viewPref === "mobile") return true;
+    if (viewPref === "pc") return false;
+    return window.matchMedia("(max-width: 768px)").matches;
+  }
+
+  /** 按地区聚合：同名地区排在一起（地区顺序按首次出现），组内保持原有顺序 */
+  function groupByRegion(list) {
+    var order = [];
+    list.forEach(function (h) {
+      var r = h.region || "其他";
+      if (order.indexOf(r) < 0) order.push(r);
+    });
+    return order.map(function (r) {
+      return {
+        region: r,
+        items: list.filter(function (h) { return (h.region || "其他") === r; })
+      };
+    });
+  }
+
+  function renderTable(shown) {
+    var groups = groupByRegion(shown);
     var colgroup = "<colgroup>" + COLS.map(function (c) {
       return '<col class="c-' + c.key + '">';
     }).join("") + "</colgroup>";
     var head = "<thead><tr>" + COLS.map(function (c) { return "<th>" + esc(c.label) + "</th>"; }).join("") + "</tr></thead>";
     var body = "<tbody>";
-    shown.forEach(function (h) {
-      body += "<tr>";
-      COLS.forEach(function (c) {
-        var cls = c.key === "pc" ? ' class="points-cell"' : (c.key === "name" ? ' class="name-cell"' : "");
-        if (c.key === "region") {
-          body += '<td class="region-cell">' + esc(h.region || "其他") + "</td>";
-        } else {
-          body += "<td" + cls + ">" + cellHtml(h, c.key) + "</td>";
-        }
+    groups.forEach(function (group) {
+      group.items.forEach(function (h, idx) {
+        body += "<tr>";
+        COLS.forEach(function (c) {
+          var cls = c.key === "pc" ? ' class="points-cell"' : (c.key === "name" ? ' class="name-cell"' : "");
+          if (c.key === "region") {
+            // 同一地区只在第一行渲染单元格，用 rowspan 纵向合并
+            if (idx === 0) {
+              body += '<td class="region-cell" rowspan="' + group.items.length + '">' + esc(group.region) + "</td>";
+            }
+          } else {
+            body += "<td" + cls + ">" + cellHtml(h, c.key) + "</td>";
+          }
+        });
+        body += "</tr>";
       });
-      body += "</tr>";
     });
     body += "</tbody>";
     listEl.innerHTML = '<table class="houses">' + colgroup + head + body + "</table>";
   }
+
+  // ---------- 手机端卡片流 ----------
+
+  function cardHtml(h) {
+    var roomCount = (h.rooms || []).length;
+    var vidCount = (h.videos || []).length +
+      (h.rooms || []).reduce(function (n, r) { return n + (r.videos || []).length; }, 0);
+
+    var tags =
+      (h.metro_ok ? '<span class="tag ok">🚇 地铁800m内</span>' : '<span class="tag no">🚇 地铁远</span>') +
+      (h.car_free ? '<span class="tag ok">🚗 人车分流</span>' : '<span class="tag no">🚗 不分流</span>') +
+      (h.middle_fixed ? '<span class="tag ok">🏫 初中固定</span>' : '<span class="tag no">🏫 初中不固定</span>') +
+      (h.property_fee ? '<span class="tag fee">物业 ' + esc(h.property_fee) + "</span>" : "");
+
+    var infos = [
+      ["物业", h.property_company],
+      ["地铁", h.metro],
+      ["幼儿园", h.kindergarten],
+      ["小学", h.primary_school],
+      ["初中", h.middle_school]
+    ].filter(function (p) { return p[1]; });
+
+    // 次级信息（配套 / 优缺点 / 备注）统一收进折叠区，卡片保持短、首屏能看多张
+    var moreBody = "";
+    if (h.notes) moreBody += '<div class="room-notes">' + esc(h.notes) + "</div>";
+    if (infos.length) {
+      moreBody += '<dl class="dl">' + infos.map(function (p) {
+        return "<div><dt>" + p[0] + "</dt><dd>" + esc(p[1]) + "</dd></div>";
+      }).join("") + "</dl>";
+    }
+    if (h.pros || h.cons) {
+      moreBody += '<div class="pc pros"><h4>优点</h4>' + pointsUl(h.pros, "pros") + "</div>" +
+        '<div class="pc cons"><h4>缺点</h4>' + pointsUl(h.cons, "cons") + "</div>";
+    }
+
+    var cta = vidCount
+      ? "▶ 看 " + vidCount + " 个看房视频" + (roomCount ? " · " + roomCount + " 套房" : "")
+      : "查看详情 · 传视频";
+
+    return '<article class="card">' +
+      '<div class="card-top"><div style="min-width:0;flex:1">' +
+      '<h3 class="card-name"><button class="name-link" data-detail="' + h.id + '">' + esc(h.name) + "</button></h3>" +
+      (h.location ? '<p class="card-loc">📍 ' + esc(h.location) + "</p>" : "") +
+      "</div></div>" +
+      (tags ? '<div class="tag-row">' + tags + "</div>" : "") +
+      '<div class="card-foot">' +
+      '<button class="vadd" data-detail="' + h.id + '">' + cta + "</button>" +
+      "</div>" +
+      (moreBody ? '<details><summary>配套 · 优缺点 · 备注<span class="arr">▾</span></summary>' +
+        '<div class="detail-body">' + moreBody + "</div></details>" : "") +
+      '<div class="card-ops">' +
+      '<button class="icon-btn" data-edit="' + h.id + '">编辑</button>' +
+      '<button class="icon-btn del" data-del="' + h.id + '">删除</button>' +
+      "</div>" +
+      "</article>";
+  }
+
+  function renderCards(shown) {
+    var groups = groupByRegion(shown);
+    listEl.innerHTML = groups.map(function (g) {
+      return '<div class="region-group">' +
+        '<div class="region-head"><h2>' + esc(g.region) + '</h2>' +
+        '<span class="cnt">' + g.items.length + ' 个</span>' +
+        '<span class="rule"></span></div>' +
+        '<div class="card-grid">' + g.items.map(cardHtml).join("") + "</div>" +
+        "</div>";
+    }).join("");
+  }
+
+  // 屏幕尺寸跨过断点时（旋转 / 拉窗口）切换布局
+  var lastMobile = isMobile();
+  var resizeTimer = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      var now = isMobile();
+      if (now !== lastMobile) { lastMobile = now; render(); }
+    }, 150);
+  });
 
   // ---------- 新增 / 编辑模态 ----------
 
@@ -258,7 +383,8 @@
       (r.videos || []).map(function (v) {
         return '<div class="vcell">' +
           (v.label ? '<div class="dim">' + esc(v.label) + "</div>" : "") +
-          '<video controls preload="metadata" playsinline src="' + v.url + '"></video>' +
+          '<div class="vwrap"><video controls preload="metadata" playsinline src="' + v.url + '"></video>' +
+          '<button class="vfs" data-fs-vid title="放大播放">⤢</button></div>' +
           '<div class="vmeta"><span>' + esc(v.orig_name) + " · " + HouseApp.fmtSize(v.size) + "</span>" +
           '<button class="del" data-del-vid="' + v.id + '">删除</button></div></div>';
       }).join("") +
@@ -301,7 +427,8 @@
     var legacy = (h.videos || []).map(function (v) {
       return '<div class="vcell">' +
         (v.label ? '<div class="dim">' + esc(v.label) + "</div>" : "") +
-        '<video controls preload="metadata" playsinline src="' + v.url + '"></video>' +
+        '<div class="vwrap"><video controls preload="metadata" playsinline src="' + v.url + '"></video>' +
+        '<button class="vfs" data-fs-vid title="放大播放">⤢</button></div>' +
         '<div class="vmeta"><span>' + esc(v.orig_name) + " · " + HouseApp.fmtSize(v.size) + "</span>" +
         '<button class="del" data-del-vid="' + v.id + '">删除</button></div></div>';
     }).join("");
@@ -542,7 +669,56 @@
 
   qEl.addEventListener("input", function () { filters.q = qEl.value.trim(); render(); });
   chipsEl.addEventListener("click", function () { setTimeout(render, 0); });
+
+  // 视频放大：自定义灯箱（不用原生 Fullscreen API——iPhone Safari/微信内置浏览器里原生全屏退出不可靠）
+  // 做法：把 video 节点临时搬进铺满屏幕的黑色遮罩层，右上角常驻 ✕ 退出；关闭时搬回原位、保留进度
+  var vboxOrigin = null;
+  function openVideoBox(video) {
+    if (document.querySelector(".vbox-mask")) return;
+    vboxOrigin = video.parentElement;  // .vwrap
+    var wasPlaying = !video.paused;
+    var mask = document.createElement("div");
+    mask.className = "vbox-mask";
+    mask.innerHTML = '<button class="vbox-close" title="退出全屏">✕</button>';
+    mask.appendChild(video);
+    document.body.appendChild(mask);
+    document.body.classList.add("no-scroll");
+    if (wasPlaying) video.play();
+    function closeBox() {
+      vboxOrigin.insertBefore(video, vboxOrigin.firstChild);  // 放回 ⤢ 按钮前面，恢复原顺序
+      video.pause();
+      mask.remove();
+      document.body.classList.remove("no-scroll");
+      vboxOrigin = null;
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e) { if (e.key === "Escape") closeBox(); }
+    mask.querySelector(".vbox-close").addEventListener("click", closeBox);
+    document.addEventListener("keydown", onKey);
+  }
+
+  document.addEventListener("click", function (e) {
+    var fsBtn = e.target.closest("[data-fs-vid]");
+    if (!fsBtn) return;
+    var cell = fsBtn.closest(".vcell") || fsBtn.closest(".vmini > div");
+    var video = cell ? cell.querySelector("video") : null;
+    if (video) openVideoBox(video);
+  });
+
+  // 竖屏视频自动加 .portrait：网格里按原始竖版比例放大显示（loadedmetadata 不冒泡，需捕获阶段监听）
+  document.addEventListener("loadedmetadata", function (e) {
+    if (e.target && e.target.tagName === "VIDEO") {
+      e.target.classList.toggle("portrait", e.target.videoHeight > e.target.videoWidth);
+    }
+  }, true);
+
   document.getElementById("add-btn").addEventListener("click", function () { openModal(null); });
+  document.getElementById("view-toggle").addEventListener("click", function () {
+    viewPref = isMobile() ? "pc" : "mobile";
+    try { localStorage.setItem("house_view", viewPref); } catch (e) {}
+    lastMobile = isMobile();
+    render();
+  });
 
   HouseApp.loadHouses(function (data) {
     houses = data;

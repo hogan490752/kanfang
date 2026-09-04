@@ -51,7 +51,7 @@
 }
 
 * { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+html { -webkit-text-size-adjust: 100%; height: 100%; }
 body {
   margin: 0;
   background: var(--bg);
@@ -59,12 +59,20 @@ body {
   font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
   font-size: 15px;
   line-height: 1.65;
+  -webkit-tap-highlight-color: transparent;
+}
+button, a, summary { touch-action: manipulation; }
+/* 首页表格页：整页固定一屏，只有表格内部滚动 */
+body.table-page {
+  height: 100dvh;
+  display: flex; flex-direction: column;
+  overflow: hidden;
 }
 .serif { font-family: "Noto Serif SC", "Songti SC", "SimSun", serif; }
 
 /* ---------- 顶栏 ---------- */
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  flex-shrink: 0; z-index: 20;
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px max(16px, env(safe-area-inset-left)) 12px max(16px, env(safe-area-inset-right));
   background: color-mix(in srgb, var(--bg) 88%, transparent);
@@ -81,7 +89,7 @@ body {
   font: inherit; font-weight: 600; font-size: 14px;
   padding: 9px 16px; border-radius: 8px;
   background: var(--accent); color: var(--accent-ink);
-  min-height: 40px;
+  min-height: 44px; /* 手指触控目标 ≥44px */
   transition: opacity .15s ease;
 }
 .btn:active { opacity: .8; }
@@ -93,7 +101,7 @@ body {
 
 /* ---------- 筛选区 ---------- */
 .filters {
-  position: sticky; top: 57px; z-index: 15;
+  flex-shrink: 0; z-index: 15;
   background: var(--bg);
   padding: 10px 16px 12px;
   border-bottom: 1px solid var(--line);
@@ -113,10 +121,10 @@ body {
 .chip-row::-webkit-scrollbar { display: none; }
 .chip {
   flex: 0 0 auto; cursor: pointer; user-select: none;
-  font: inherit; font-size: 13px; font-weight: 500;
-  padding: 6px 13px; border-radius: 999px;
+  font: inherit; font-size: 13.5px; font-weight: 500;
+  padding: 8px 15px; border-radius: 999px;
   border: 1px solid var(--line); background: var(--surface); color: var(--muted);
-  min-height: 34px;
+  min-height: 40px;
   transition: all .15s ease;
 }
 .chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
@@ -124,7 +132,11 @@ body {
 .result-count { font-size: 12px; color: var(--muted); }
 
 /* ---------- 主体 ---------- */
-main { max-width: none; margin: 0 auto; padding: 8px 20px calc(32px + env(safe-area-inset-bottom)); }
+main {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  max-width: none; margin: 0 auto; padding: 8px 20px 12px;
+}
 .region-head {
   display: flex; align-items: baseline; gap: 10px;
   margin: 26px 2px 12px;
@@ -151,10 +163,38 @@ main { max-width: none; margin: 0 auto; padding: 8px 20px calc(32px + env(safe-a
 .tag.ok { background: var(--good-bg); color: var(--good); }
 .tag.no { background: var(--warn-bg); color: var(--warn); }
 .tag.fee { font-variant-numeric: tabular-nums; }
-.card-foot { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 12px; }
+.card-foot { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px 14px; }
+/* 卡片主操作：看视频/详情，整宽实色描边大按钮，一眼可见、拇指好按 */
+.card-foot .vadd {
+  width: 100%; min-height: 46px; padding: 10px 14px;
+  font-size: 14.5px; font-weight: 600;
+  border: 1.5px solid var(--accent); border-radius: 12px;
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+}
+.card-foot .vadd:active { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
 .vid-count { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
 .vid-count.has { color: var(--good); font-weight: 600; }
 .expand-hint { font-size: 12px; color: var(--muted); }
+/* 卡片正文 / 底部操作（手机端卡片流用） */
+.card-body { padding: 4px 16px 12px; }
+.card-ops { display: flex; gap: 10px; padding: 10px 16px 14px; border-top: 1px dashed var(--line); }
+.card-ops .icon-btn { flex: 1; min-height: 42px; font-size: 13.5px; border-radius: 10px; }
+/* 卡片流模式：外层容器去掉表格的边框与阴影，只做纵向滚动；桌面端切换时收成手机宽度居中 */
+.table-wrap.cards-mode {
+  border: none; border-radius: 0; background: transparent; box-shadow: none;
+  overflow-x: hidden; overflow-y: auto; padding: 0 0 6px;
+  max-width: 520px; margin: 0 auto; width: 100%;
+}
+/* 手机版模式：卡片永远单列（模拟手机内观感） */
+.table-wrap.cards-mode .card-grid { grid-template-columns: 1fr; }
+/* 卡片流里地区标题吸顶：滚动时始终知道自己在哪个地区分组 */
+.table-wrap.cards-mode .region-head {
+  position: sticky; top: 0; z-index: 5;
+  margin: 0 -2px; padding: 12px 2px 8px;
+  background: var(--bg);
+}
+.table-wrap.cards-mode .region-group + .region-group { margin-top: 16px; }
 
 /* ---------- 详情 ---------- */
 .card details { border-top: 1px dashed var(--line); }
@@ -194,6 +234,37 @@ video {
   width: 100%; max-height: 420px; border-radius: 10px;
   background: #000; display: block;
 }
+/* 视频放大按钮：悬浮在视频右上角，半透黑底不挡画面 */
+.vwrap { position: relative; }
+.vfs {
+  position: absolute; top: 6px; right: 6px; z-index: 2;
+  width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer;
+  background: rgba(0, 0, 0, .55); color: #fff;
+  font: inherit; font-size: 15px; line-height: 1;
+  display: grid; place-items: center;
+  transition: background .15s ease;
+}
+.vfs:active { background: rgba(0, 0, 0, .8); }
+/* 竖屏视频：按原始竖版比例显示，宽度不硬拉满（宽度由高度和比例反推） */
+.room-vids video.portrait { width: auto; max-width: 100%; max-height: 320px; margin: 0 auto; }
+.vmini video.portrait { width: auto; max-width: 100%; max-height: 260px; margin: 0 auto; }
+/* 视频灯箱：自定义“全屏”播放层，右上角固定退出按钮（退出路径比原生全屏明确） */
+.vbox-mask {
+  position: fixed; inset: 0; z-index: 60;
+  background: #000;
+  display: grid; place-items: center;
+}
+.vbox-mask video { width: 100%; height: 100%; max-height: none; border-radius: 0; object-fit: contain; background: #000; }  /* 竖屏/横屏都按比例完整显示；覆盖全局 video 的 max-height:420px */
+.vbox-close {
+  position: fixed; z-index: 61;
+  top: calc(10px + env(safe-area-inset-top)); right: 12px;
+  width: 44px; height: 44px; border: none; border-radius: 50%; cursor: pointer;
+  background: rgba(255, 255, 255, .14); color: #fff;
+  font: inherit; font-size: 18px; line-height: 1;
+  display: grid; place-items: center;
+}
+.vbox-close:active { background: rgba(255, 255, 255, .3); }
+body.no-scroll { overflow: hidden; }
 
 /* ---------- 上传页 ---------- */
 .page { max-width: 620px; margin: 0 auto; padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
@@ -256,13 +327,14 @@ video {
 .gate .err { color: var(--danger); font-size: 13px; min-height: 18px; }
 
 .empty { text-align: center; color: var(--muted); padding: 48px 0; font-size: 14px; }
-.footer-note { text-align: center; color: var(--muted); font-size: 12px; padding: 28px 0 8px; }
+.footer-note { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 0 0; flex-shrink: 0; }
 
 /* ---------- Excel 式表格 ---------- */
 .table-wrap {
   border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
   box-shadow: var(--shadow);
-  overflow: auto; max-height: calc(100dvh - 210px); min-height: 320px;
+  flex: 1; min-height: 0;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
 table.houses { border-collapse: separate; border-spacing: 0; width: 100%; table-layout: fixed; }
@@ -340,7 +412,7 @@ table.houses tr:last-child td { border-bottom: none; }
 }
 .icon-btn.del { color: var(--danger); border-color: var(--danger); }
 /* 表格上方工具行 */
-.tool-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; flex-wrap: wrap; }
+.tool-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 0 10px; flex-wrap: wrap; flex-shrink: 0; }
 .tool-row .hint { font-size: 12px; color: var(--muted); }
 .tool-row .ops { display: flex; gap: 8px; }
 /* 编辑模态 */
@@ -422,6 +494,88 @@ table.houses tr:last-child td { border-bottom: none; }
 /* 房间编辑模态复用 .modal；房间表单多列 */
 .modal .grid2 { display: grid; gap: 12px; }
 @media (min-width: 560px) { .modal .grid2 { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- 手机端（≤768px）：触控优先 · 信息分层 · 无横向滚动 ---------- */
+@media (max-width: 768px) {
+  body { font-size: 15px; line-height: 1.7; }
+
+  /* 手机端去掉顶栏，首屏全部留给筛选和内容（记录看房入口见页底「上传页」链接） */
+  .topbar { display: none; }
+
+  /* 筛选区：搜索框 46px 高、字号 16px（防 iOS 聚焦自动放大）；顶部避让刘海/灵动岛 */
+  .filters { padding: calc(12px + env(safe-area-inset-top)) 14px 12px; gap: 10px; }
+  .search-row input { min-height: 46px; padding: 10px 14px; font-size: 16px; border-radius: 10px; }
+  /* chip 横滑时贴边出血，视觉更满、起终点更好够 */
+  .chip-row { margin: 0 -14px; padding: 2px 14px 4px; }
+  .result-count { font-size: 13px; }
+
+  /* 主体 */
+  main { padding: 8px 12px 12px; }
+  .tool-row { margin: 2px 0 10px; gap: 8px; }
+  .tool-row .hint { font-size: 12px; }
+  .tool-row .ops { width: 100%; }
+  .tool-row .ops .btn { flex: 1; min-height: 44px; font-size: 14px; border-radius: 10px; }
+
+  /* 卡片流 */
+  .table-wrap.cards-mode { max-width: 560px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .region-head h2 { font-size: 17px; }
+  .card-grid { gap: 14px; }
+  .card { border-radius: 16px; overflow-wrap: anywhere; }
+  .card-top { padding: 16px 16px 0; }
+  .card-name { font-size: 19px; }
+  /* 小区名本身就是大链接：去下划线、加点击区，整行可点 */
+  .card-name .name-link { font-size: 19px; color: var(--ink); text-decoration: none; display: inline-block; padding: 2px 0; }
+  .card-loc { font-size: 13px; margin: 4px 0 0; }
+  .tag-row { padding: 10px 16px 2px; gap: 7px; }
+  .tag { font-size: 13px; padding: 4px 11px; }
+  .card-body { padding: 6px 16px 12px; }
+  .dl > div { grid-template-columns: 64px 1fr; gap: 8px; font-size: 14.5px; }
+  .dl dt { font-size: 13px; }
+  .card summary { min-height: 48px; padding: 12px 16px; font-size: 14px; }
+  .detail-body { padding: 2px 16px 16px; gap: 12px; }
+  .card-foot { padding: 12px 16px 14px; }
+  .card-foot .vadd { min-height: 48px; font-size: 15px; border-radius: 12px; }
+  .card-ops { padding: 10px 16px 14px; gap: 10px; }
+  .card-ops .icon-btn { min-height: 42px; font-size: 14px; }
+
+  /* 详情弹层：底部上滑面板，符合手机习惯；自身滚动、避让 Home 指示条 */
+  .detail-mask { padding: 0; place-items: end center; }
+  .detail-panel {
+    width: 100%; max-height: 93dvh; margin-bottom: 0;
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    border-radius: 18px 18px 0 0;
+    padding: 18px 16px calc(24px + env(safe-area-inset-bottom));
+  }
+  .detail-head h3 { font-size: 20px; }
+  .detail-head .close { min-height: 42px; padding: 8px 14px; }
+  .detail-grid, .d-pc { grid-template-columns: 1fr; }
+  .d-item { padding: 10px 12px; }
+  .d-item dd { font-size: 14.5px; }
+  .detail-sec-title .btn { min-height: 42px; }
+  .room-block { padding: 14px; }
+  .room-vids { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .room-vids video { max-height: 150px; }
+  .vid-head .del, .room-vids .vmeta .del { min-height: 36px; }
+  .vadd { min-height: 44px; padding: 8px 12px; font-size: 13px; }
+  /* 视频放大按钮触控加大；竖屏视频给足高度；文件名单行省略不再挤压删除按钮 */
+  .vfs { width: 40px; height: 40px; font-size: 16px; }
+  .room-vids video.portrait { max-height: 340px; }
+  .room-vids .vmeta span, .vmini .vmeta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 表单弹层：铺满、输入框 46px、主按钮 48px */
+  .modal-mask { padding: 12px; place-items: start center; }
+  .modal { width: 100%; max-height: calc(100dvh - 24px); padding: 16px 14px; border-radius: 14px; }
+  .modal .grid2 { grid-template-columns: 1fr; }
+  .modal .field input[type="text"], .modal .field textarea,
+  .field input[type="text"], .field select, .field textarea { min-height: 46px; }
+  .modal-ops .btn { min-height: 48px; font-size: 15px; }
+  .check { min-height: 40px; }
+
+  .footer-note { padding: 8px 4px 0; }
+}
+@media (max-width: 400px) {
+  .brand .sub { display: none; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
