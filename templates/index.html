@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>看房对比</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1 class="serif">看房对比</h1>
+    <span class="sub">买房是大事，逐个看仔细</span>
+  </div>
+  <a class="btn" href="/upload">＋ 记录看房</a>
+</header>
+
+<section class="filters">
+  <div class="search-row">
+    <input id="q" type="search" placeholder="搜小区 / 学校 / 备注…" autocomplete="off">
+  </div>
+  <div class="chip-row" id="chips"></div>
+  <div class="result-count" id="count"></div>
+</section>
+
+<main>
+  <div class="tool-row">
+    <span class="hint">表格可左右/上下滑动，地区列和表头固定。点「编辑」改任意一列。</span>
+    <div class="ops">
+      <button class="btn ghost" id="add-btn" type="button">＋ 新增小区</button>
+    </div>
+  </div>
+  <div class="table-wrap" id="table-wrap"></div>
+  <p class="footer-note">看房视频可在表格里直接传（每行视频列的「传视频」），也可以去<a href="/upload" style="color:var(--accent)">上传页</a>。</p>
+</main>
+
+<script src="/static/common.js"></script>
+<script src="/static/table.js"></script>
+</body>
+</html>

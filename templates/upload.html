@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>记录看房</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1 class="serif">记录看房</h1>
+    <span class="sub">看完随手传，回家不用回忆</span>
+  </div>
+  <a class="btn ghost" href="/">← 对比表</a>
+</header>
+
+<div class="page">
+  <p class="page-title serif" style="font-size:22px">上传看房视频</p>
+  <p class="page-sub">选小区 → 选这套房（可现场添加，填大小/价格/备注）→ 传视频，就够啦。</p>
+
+  <form class="form-card" id="form">
+    <div class="field">
+      <label for="house-sel">看的小区</label>
+      <select id="house-sel" required></select>
+    </div>
+
+    <div class="field">
+      <label for="room-sel">看的哪套房</label>
+      <select id="room-sel" required></select>
+    </div>
+
+    <details class="new-house-toggle" id="room-toggle">
+      <summary>这套房没记过？点这里添加一套 ＋</summary>
+      <div class="field">
+        <label for="nr-title">房子叫法 *</label>
+        <input type="text" id="nr-title" placeholder="例如：2栋 3室2厅 / 东边户 89㎡">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="nr-size">大小</label>
+          <input type="text" id="nr-size" placeholder="例如：89㎡ / 建面105得房88">
+        </div>
+        <div class="field">
+          <label for="nr-price">价格</label>
+          <input type="text" id="nr-price" placeholder="例如：挂185万 / 到手175">
+        </div>
+      </div>
+      <div class="field">
+        <label for="nr-notes">这套房的备注</label>
+        <input type="text" id="nr-notes" placeholder="例如：中层采光好，业主急卖">
+      </div>
+      <button type="button" class="btn ghost block" id="nr-save">添加这套房</button>
+    </details>
+
+    <details class="new-house-toggle" id="new-toggle">
+      <summary>小区列表里没有？点这里新建一个 ＋</summary>
+      <div class="grid2">
+        <div class="field">
+          <label for="nh-name">小区 *</label>
+          <input type="text" id="nh-name" placeholder="例如：XX新城三期">
+        </div>
+        <div class="field">
+          <label for="nh-region">地区 *</label>
+          <input type="text" id="nh-region" placeholder="例如：光谷东及附近">
+        </div>
+        <div class="field">
+          <label for="nh-prop">小区物业</label>
+          <input type="text" id="nh-prop" placeholder="例如：万科物业">
+        </div>
+        <div class="field">
+          <label for="nh-fee">物业费</label>
+          <input type="text" id="nh-fee" placeholder="例如：2.5-3元/月/㎡">
+        </div>
+      </div>
+      <div class="field">
+        <label for="nh-pros">优点（一行一条）</label>
+        <textarea id="nh-pros" placeholder="优点：学区稳定&#10;优点：地铁近"></textarea>
+      </div>
+      <div class="field">
+        <label for="nh-cons">缺点（一行一条）</label>
+        <textarea id="nh-cons" placeholder="缺点：车位紧张&#10;缺点：靠近主干道有噪音"></textarea>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="nh-metro-txt">地铁</label>
+          <input type="text" id="nh-metro-txt" placeholder="例如：地铁站步行9-11分钟">
+        </div>
+        <div class="field">
+          <label for="nh-location">位置</label>
+          <input type="text" id="nh-location" placeholder="例如：三环外 花山生态城">
+        </div>
+        <div class="field">
+          <label for="nh-kindergarten">幼儿园</label>
+          <input type="text" id="nh-kindergarten" placeholder="">
+        </div>
+        <div class="field">
+          <label for="nh-primary">小学</label>
+          <input type="text" id="nh-primary" placeholder="">
+        </div>
+        <div class="field">
+          <label for="nh-middle">初中</label>
+          <input type="text" id="nh-middle" placeholder="例如：光谷实验中学（第一梯队）">
+        </div>
+        <div class="field">
+          <label for="nh-notes">备注</label>
+          <input type="text" id="nh-notes" placeholder="">
+        </div>
+      </div>
+      <div class="check-row">
+        <label class="check"><input type="checkbox" id="nh-metro">🚇 地铁800m内</label>
+        <label class="check"><input type="checkbox" id="nh-car">🚗 人车分流</label>
+        <label class="check"><input type="checkbox" id="nh-school">🏫 初中固定对口</label>
+      </div>
+      <button type="button" class="btn ghost block" id="nh-save">保存新小区</button>
+    </details>
+
+    <div class="field">
+      <label for="file">看房视频 *</label>
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="选择视频文件">
+        <span class="big">📹 点这里选视频，或把视频拖进来</span>
+        <span class="small">支持 mp4 / mov / webm，最大 1GB</span>
+        <span class="picked" id="picked"></span>
+      </div>
+      <input type="file" id="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.m4v,.webm" hidden>
+    </div>
+
+    <div class="field">
+      <label for="label">一句提醒（可选）</label>
+      <input type="text" id="label" maxlength="50" placeholder="例如：那个朝南主卧采光很好 / 卫生间是暗卫">
+    </div>
+
+    <button type="submit" class="btn block" id="go">上传</button>
+    <div class="progress" id="bar"><i></i></div>
+    <div class="status" id="st"></div>
+  </form>
+
+  <p class="footer-note">传完直接回<a href="/" style="color:var(--accent)">对比表</a>，点小区名就能看到这套房的视频。</p>
+</div>
+
+<script src="/static/common.js"></script>
+<script src="/static/upload.js"></script>
+</body>
+</html>
