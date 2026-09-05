@@ -237,11 +237,11 @@ video {
 /* 视频放大按钮：悬浮在视频右上角，半透黑底不挡画面 */
 .vwrap { position: relative; }
 .vfs {
-  position: absolute; top: 6px; right: 6px; z-index: 2;
+  position: absolute; top: 6px; right: 6px; z-index: 5;
   width: 36px; height: 36px; border: none; border-radius: 8px; cursor: pointer;
   background: rgba(0, 0, 0, .55); color: #fff;
   font: inherit; font-size: 15px; line-height: 1;
-  display: grid; place-items: center;
+  display: grid; place-items: center; visibility: visible; pointer-events: auto;
   transition: background .15s ease;
 }
 .vfs:active { background: rgba(0, 0, 0, .8); }
@@ -449,7 +449,7 @@ table.houses tr:last-child td { border-bottom: none; }
 .detail-panel {
   background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
   width: min(760px, 100%); padding: 20px 18px 24px; display: grid; gap: 16px;
-  box-shadow: var(--shadow); margin-bottom: 40px;
+  box-shadow: var(--shadow); margin-bottom: 40px; min-width: 0; overflow-x: hidden;
 }
 .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .detail-head h3 { margin: 0; font-size: 21px; line-height: 1.35; text-wrap: balance; }
@@ -479,14 +479,15 @@ table.houses tr:last-child td { border-bottom: none; }
 }
 .detail-sec-title h4 { margin: 0; font-size: 16px; }
 /* 房间块 */
-.room-block { border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; display: grid; gap: 10px; background: color-mix(in srgb, var(--bg) 45%, transparent); }
+.room-block { border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px; display: grid; gap: 10px; background: color-mix(in srgb, var(--bg) 45%, transparent); min-width: 0; }
 .room-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .room-head .rname { font-weight: 700; font-size: 15px; }
 .room-head .rmeta { font-size: 13px; color: var(--muted); margin-top: 2px; display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; }
 .room-head .rops { display: flex; gap: 6px; flex-shrink: 0; }
 .room-notes { font-size: 13px; color: var(--ink); background: var(--surface-2); border-radius: 8px; padding: 7px 10px; overflow-wrap: anywhere; }
-.room-vids { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
-.room-vids .vcell { display: grid; gap: 4px; }
+.room-vids { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; min-width: 0; }
+.room-vids .vcell { display: grid; gap: 4px; min-width: 0; }
+.room-vids .vwrap { position: relative; min-width: 0; width: 100%; }
 .room-vids video { width: 100%; max-height: 200px; border-radius: 8px; background: #000; display: block; }
 .room-vids .vmeta { display: flex; justify-content: space-between; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
 .room-vids .vmeta .del { border: none; background: none; cursor: pointer; font: inherit; font-size: 11px; color: var(--danger); padding: 4px; min-height: 28px; }
@@ -553,13 +554,14 @@ table.houses tr:last-child td { border-bottom: none; }
   .d-item dd { font-size: 14.5px; }
   .detail-sec-title .btn { min-height: 42px; }
   .room-block { padding: 14px; }
-  .room-vids { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .room-vids video { max-height: 150px; }
+  /* 手机端视频双列等宽，视频在各自单元内缩放 */
+  .room-vids { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .room-vids video,
+  .room-vids video.portrait { width: 100%; height: 150px; max-width: 100%; max-height: 150px; object-fit: contain; }
   .vid-head .del, .room-vids .vmeta .del { min-height: 36px; }
   .vadd { min-height: 44px; padding: 8px 12px; font-size: 13px; }
   /* 视频放大按钮触控加大；竖屏视频给足高度；文件名单行省略不再挤压删除按钮 */
   .vfs { width: 40px; height: 40px; font-size: 16px; }
-  .room-vids video.portrait { max-height: 340px; }
   .room-vids .vmeta span, .vmini .vmeta span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* 表单弹层：铺满、输入框 46px、主按钮 48px */
