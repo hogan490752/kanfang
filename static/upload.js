@@ -134,6 +134,8 @@
       cons: val("nh-cons"),
       metro: val("nh-metro-txt"),
       location: val("nh-location"),
+      longitude: val("nh-longitude"),
+      latitude: val("nh-latitude"),
       kindergarten: val("nh-kindergarten"),
       primary_school: val("nh-primary"),
       middle_school: val("nh-middle"),
@@ -142,6 +144,8 @@
       car_free: rv("nh-car").checked,
       middle_fixed: rv("nh-school").checked
     };
+    var coordinateError = HouseApp.coordinateError(body.longitude, body.latitude);
+    if (coordinateError) { st.textContent = coordinateError; st.className = "status err"; return; }
     fetch("/api/houses", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Site-Password": HouseApp.getPassword() },
@@ -150,12 +154,14 @@
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (res) {
         if (!res.ok) { st.textContent = res.d.error || "保存失败"; st.className = "status err"; return; }
+        var saveError = HouseApp.coordinateSaveError(body, res.d.house);
+        if (saveError) { st.textContent = saveError; st.className = "status err"; return; }
         houses.push(Object.assign({ rooms: [], videos: [] }, res.d.house));
         fillSelect();
         sel.value = String(res.d.house.id);
         newToggle.open = false;
         ["nh-name", "nh-region", "nh-prop", "nh-fee", "nh-pros", "nh-cons", "nh-metro-txt",
-         "nh-location", "nh-kindergarten", "nh-primary", "nh-middle", "nh-notes"].forEach(function (id) {
+         "nh-location", "nh-longitude", "nh-latitude", "nh-kindergarten", "nh-primary", "nh-middle", "nh-notes"].forEach(function (id) {
           rv(id).value = "";
         });
         ["nh-metro", "nh-car", "nh-school"].forEach(function (id) { rv(id).checked = false; });

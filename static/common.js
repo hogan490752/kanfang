@@ -11,6 +11,34 @@
     setPassword: function (pw) {
       try { localStorage.setItem(PW_KEY, pw); } catch (e) {}
     },
+    coordinateError: function (longitude, latitude) {
+      var lon = String(longitude == null ? "" : longitude).trim();
+      var lat = String(latitude == null ? "" : latitude).trim();
+      if (!lon && !lat) return "";
+      if (!lon || !lat) return "请同时填写经度和纬度，或同时留空";
+      var decimal = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+      if (!decimal.test(lon) || !Number.isFinite(Number(lon)) || Math.abs(Number(lon)) > 180)
+        return "经度必须是 -180 到 180 之间的数字";
+      if (!decimal.test(lat) || !Number.isFinite(Number(lat)) || Math.abs(Number(lat)) > 90)
+        return "纬度必须是 -90 到 90 之间的数字";
+      return "";
+    },
+    amapUrl: function (h) {
+      if (h.longitude == null || h.latitude == null ||
+          String(h.longitude).trim() === "" || String(h.latitude).trim() === "" ||
+          this.coordinateError(h.longitude, h.latitude)) return "";
+      return "https://uri.amap.com/marker?position=" + Number(h.longitude) + "," + Number(h.latitude) +
+        "&name=" + encodeURIComponent(h.name || "小区位置") + "&coordinate=gaode&src=kanfang&callnative=0";
+    },
+    coordinateSaveError: function (submitted, saved) {
+      function normalized(value) {
+        return value == null || String(value).trim() === "" ? null : Number(value);
+      }
+      if (!saved || ["longitude", "latitude"].some(function (key) {
+        return normalized(submitted[key]) !== normalized(saved[key]);
+      })) return "经纬度未保存成功，请确认已关闭旧服务并重启项目后重试。填写的内容已保留。";
+      return "";
+    },
     /** 拉取房源数据；需要口令时弹出遮罩，成功后回调 cb(houses) */
     loadHouses: function (cb) {
       fetch("/api/houses", { headers: { "X-Site-Password": this.getPassword() } })

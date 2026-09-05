@@ -95,6 +95,14 @@
           <input type="text" id="nh-location" placeholder="例如：三环外 花山生态城">
         </div>
         <div class="field">
+          <label for="nh-longitude">经度（可选）</label>
+          <input type="text" inputmode="decimal" id="nh-longitude" placeholder="例如：114.305393" aria-describedby="nh-coordinate-hint">
+        </div>
+        <div class="field">
+          <label for="nh-latitude">纬度（可选）</label>
+          <input type="text" inputmode="decimal" id="nh-latitude" placeholder="例如：30.593099" aria-describedby="nh-coordinate-hint">
+        </div>
+        <div class="field">
           <label for="nh-kindergarten">幼儿园</label>
           <input type="text" id="nh-kindergarten" placeholder="">
         </div>
@@ -117,6 +125,7 @@
         <label class="check"><input type="checkbox" id="nh-school">🏫 初中固定对口</label>
       </div>
       <button type="button" class="btn ghost block" id="nh-save">保存新小区</button>
+      <p class="coordinate-hint" id="nh-coordinate-hint">填写高德地图经纬度（先经度、后纬度），保存后可在列表打开地图；也可两项都留空。</p>
     </details>
 
     <div class="field">

@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 .playwright-mcp/
 .workbuddy/
+map_config.json

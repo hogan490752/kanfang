@@ -64,6 +64,13 @@
 
   function esc(s) { return HouseApp.esc(s); }
 
+  function mapButton(h) {
+    var url = HouseApp.amapUrl(h);
+    return url
+      ? '<button type="button" class="icon-btn map-btn" data-map="' + h.id + '" title="查看' + esc(h.name) + '的位置">高德地图</button>'
+      : '<button class="icon-btn map-btn" disabled title="编辑小区，填写经纬度后即可查看位置">未设位置</button>';
+  }
+
   function pointsUl(text, cls) {
     var pts = HouseApp.splitPoints(text);
     if (!pts.length) return '<span class="dim">—</span>';
@@ -81,7 +88,8 @@
         return '<button class="name-link" data-detail="' + h.id + '">' + esc(h.name) + "</button>" +
           '<div class="dim">📍' + esc(h.location || "—") + " · " + (h.middle_fixed ? "初中固定对口" : "初中⚠不固定") + "</div>" +
           '<div class="dim">🏠 ' + (h.rooms && h.rooms.length ? h.rooms.length + " 套房 · " : "") +
-          ((h.rooms || []).reduce(function (n, r) { return n + (r.videos || []).length; }, 0) + (h.videos || []).length) + " 个视频 · 点看详情</div>";
+          ((h.rooms || []).reduce(function (n, r) { return n + (r.videos || []).length; }, 0) + (h.videos || []).length) + " 个视频 · 点看详情</div>" +
+          '<div class="name-map">' + mapButton(h) + '</div>';
       case "property_company": return h.property_company ? '<div class="cell-line">' + esc(h.property_company) + "</div>" : dim();
       case "property_fee": return h.property_fee ? '<div class="cell-line" style="font-variant-numeric:tabular-nums">' + esc(h.property_fee) + "</div>" : dim();
       case "pc":
@@ -248,6 +256,7 @@
       (moreBody ? '<details><summary>配套 · 优缺点 · 备注<span class="arr">▾</span></summary>' +
         '<div class="detail-body">' + moreBody + "</div></details>" : "") +
       '<div class="card-ops">' +
+      mapButton(h) +
       '<button class="icon-btn" data-edit="' + h.id + '">编辑</button>' +
       '<button class="icon-btn del" data-del="' + h.id + '">删除</button>' +
       "</div>" +
@@ -291,7 +300,9 @@
     { key: "primary_school", label: "小学", type: "text", ph: "" },
     { key: "middle_school", label: "初中", type: "text", ph: "例如：光谷实验中学（第一梯队）" },
     { key: "location", label: "位置", type: "text", ph: "例如：三环外 东湖高新区花山" },
-    { key: "notes", label: "备注", type: "textarea", ph: "" }
+    { key: "notes", label: "备注", type: "textarea", ph: "" },
+    { key: "longitude", label: "经度（可选）", type: "text", ph: "例如：114.305393", decimal: true },
+    { key: "latitude", label: "纬度（可选）", type: "text", ph: "例如：30.593099", decimal: true }
   ];
 
   function fieldHtml(f, val) {
@@ -300,7 +311,8 @@
     if (f.type === "textarea") {
       input = '<textarea id="mf-' + f.key + '" placeholder="' + esc(f.ph) + '">' + v + "</textarea>";
     } else {
-      input = '<input type="text" id="mf-' + f.key + '" value="' + v + '" placeholder="' + esc(f.ph) + '">';
+      input = '<input type="text" id="mf-' + f.key + '" value="' + v + '" placeholder="' + esc(f.ph) + '"' +
+        (f.decimal ? ' inputmode="decimal" aria-describedby="coordinate-hint"' : '') + '>';
     }
     return '<div class="field"><label for="mf-' + f.key + '">' + esc(f.label) +
       (f.req ? " *" : "") + "</label>" + input + "</div>";
@@ -325,6 +337,7 @@
     inner += '<div class="grid2">';
     FIELDS.forEach(function (f) { inner += fieldHtml(f, isEdit ? h[f.key] : ""); });
     inner += "</div>";
+    inner += '<p class="coordinate-hint" id="coordinate-hint">填写高德地图经纬度（先经度、后纬度），保存后可在列表打开地图；两项都留空可清除位置。</p>';
     inner += '<div class="check-row">' +
       '<label class="check"><input type="checkbox" id="mf-metro_ok"' + (isEdit && h.metro_ok ? " checked" : "") + ">🚇 地铁800m内</label>" +
       '<label class="check"><input type="checkbox" id="mf-car_free"' + (isEdit && h.car_free ? " checked" : "") + ">🚗 人车分流</label>" +
@@ -338,6 +351,8 @@
     mask.querySelector("[data-msave]").addEventListener("click", function () {
       var d = collectForm();
       if (!d.name) { alert("小区名称必填"); return; }
+      var coordinateError = HouseApp.coordinateError(d.longitude, d.latitude);
+      if (coordinateError) { alert(coordinateError); return; }
       var url = isEdit ? "/api/houses/" + h.id : "/api/houses";
       fetch(url, {
         method: isEdit ? "PUT" : "POST",
@@ -347,6 +362,8 @@
         return r.json().then(function (data) { return { ok: r.ok, data: data }; });
       }).then(function (res) {
         if (!res.ok) { alert(res.data.error || "保存失败"); return; }
+        var saveError = HouseApp.coordinateSaveError(d, res.data.house);
+        if (saveError) { alert(saveError); return; }
         if (isEdit) {
           houses = houses.map(function (x) { return x.id === h.id ? Object.assign({}, x, res.data.house) : x; });
         } else {
@@ -438,6 +455,7 @@
       (h.location ? " · " + esc(h.location) : "") + "</div></div>" +
       '<button class="close">关闭 ✕</button></div>' +
       '<div class="detail-tags">' + tags + "</div>" +
+      '<div>' + mapButton(h) + '</div>' +
       (items ? '<dl class="detail-grid">' + items + "</dl>" : "") +
       (h.pros || h.cons ? '<div class="d-pc">' + pcList(h.pros, "pros") + pcList(h.cons, "cons") + "</div>" : "") +
       (h.notes ? '<div class="room-notes">' + esc(h.notes) + "</div>" : "") +
@@ -592,6 +610,12 @@
 
   // 详情弹层内的事件委托（挂在 document 上，弹层动态创建）
   document.addEventListener("click", function (e) {
+    var mapBtn = e.target.closest("[data-map]");
+    if (mapBtn) {
+      var mapHouse = findHouse(mapBtn.getAttribute("data-map"));
+      if (mapHouse) HouseApp.openMap(mapHouse);
+      return;
+    }
     var mask = e.target.closest(".detail-mask");
     var hid = mask ? mask.dataset.houseId : null;
 

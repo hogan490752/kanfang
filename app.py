@@ -6,6 +6,7 @@ import os
 import sqlite3
 import re
 import json
+import math
 
 from flask import Flask, request, jsonify, send_from_directory, abort, g
 
@@ -29,7 +30,7 @@ VIDEO_MIME = {".mp4": "video/mp4", ".m4v": "video/mp4", ".mov": "video/quicktime
 _HOUSE_FIELDS = [
     "region", "name", "property_company", "property_fee", "pros", "cons",
     "metro", "metro_ok", "kindergarten", "primary_school", "middle_school",
-    "middle_fixed", "car_free", "location", "notes",
+    "middle_fixed", "car_free", "location", "notes", "longitude", "latitude",
 ]
 
 
@@ -70,6 +71,8 @@ def init_db():
             middle_fixed INTEGER DEFAULT 0,
             car_free INTEGER DEFAULT 0,
             location TEXT DEFAULT '',
+            longitude REAL,
+            latitude REAL,
             notes TEXT DEFAULT '',
             sort_order INTEGER DEFAULT 0,
             created_at TEXT DEFAULT (datetime('now', 'localtime'))
@@ -103,6 +106,11 @@ def init_db():
     cols = [r[1] for r in db.execute("PRAGMA table_info(videos)")]
     if "room_id" not in cols:
         db.execute("ALTER TABLE videos ADD COLUMN room_id INTEGER")
+    # 老库迁移：位置坐标可为空，不影响已有小区、房子和视频。
+    house_cols = [r[1] for r in db.execute("PRAGMA table_info(houses)")]
+    for field in ("longitude", "latitude"):
+        if field not in house_cols:
+            db.execute(f"ALTER TABLE houses ADD COLUMN {field} REAL")
     # 首次启动：导入种子数据
     count = db.execute("SELECT COUNT(*) FROM houses").fetchone()[0]
     if count == 0 and os.path.exists(SEED_PATH):
@@ -154,6 +162,23 @@ def page_upload():
     return send_from_directory(os.path.join(BASE_DIR, "templates"), "upload.html")
 
 
+@app.get("/api/map-config")
+def api_map_config():
+    if not check_password():
+        return jsonify({"error": "需要访问口令"}), 401
+    config = {}
+    path = os.path.join(BASE_DIR, "map_config.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            config = json.load(f)
+    response = jsonify({
+        "key": os.environ.get("AMAP_KEY", config.get("key", "")),
+        "securityJsCode": os.environ.get("AMAP_SECURITY_JS_CODE", config.get("securityJsCode", "")),
+    })
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # ---------- 房源 API ----------
 
 def _row_to_house(r):
@@ -168,6 +193,28 @@ def _row_to_video(r):
     d = dict(r)
     d["url"] = f"/api/videos/{d['id']}/file"
     return d
+
+
+def _coordinates(data, existing=None):
+    """坐标成对填写或清空；旧客户端未传坐标时保留原值。"""
+    values = []
+    for field, label, limit in (("longitude", "经度", 180), ("latitude", "纬度", 90)):
+        value = data.get(field, existing[field] if existing is not None else None)
+        if value is None or (isinstance(value, str) and not value.strip()):
+            values.append(None)
+            continue
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            raise ValueError(f"{label}必须是有效数字")
+        try:
+            value = float(value)
+        except (ValueError, OverflowError):
+            raise ValueError(f"{label}必须是有效数字") from None
+        if not math.isfinite(value) or not -limit <= value <= limit:
+            raise ValueError(f"{label}必须在 {-limit} 到 {limit} 之间")
+        values.append(value)
+    if (values[0] is None) != (values[1] is None):
+        raise ValueError("请同时填写经度和纬度，或同时留空")
+    return tuple(values)
 
 
 @app.get("/api/houses")
@@ -205,14 +252,18 @@ def api_add_house():
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "小区名称不能为空"}), 400
+    try:
+        longitude, latitude = _coordinates(data)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     db = get_db()
     dup = db.execute("SELECT id FROM houses WHERE name = ?", (name,)).fetchone()
     if dup:
         return jsonify({"error": f"小区「{name}」已存在"}), 409
     cur = db.execute(
         "INSERT INTO houses (region,name,property_company,property_fee,pros,cons,metro,metro_ok,"
-        "kindergarten,primary_school,middle_school,middle_fixed,car_free,location,notes,sort_order)"
-        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,(SELECT COALESCE(MAX(sort_order),0)+1 FROM houses))",
+        "kindergarten,primary_school,middle_school,middle_fixed,car_free,location,notes,longitude,latitude,sort_order)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,(SELECT COALESCE(MAX(sort_order),0)+1 FROM houses))",
         (
             (data.get("region") or "").strip(), name, (data.get("property_company") or "").strip(),
             (data.get("property_fee") or "").strip(), (data.get("pros") or "").strip(),
@@ -221,6 +272,7 @@ def api_add_house():
             (data.get("primary_school") or "").strip(), (data.get("middle_school") or "").strip(),
             1 if data.get("middle_fixed") else 0, 1 if data.get("car_free") else 0,
             (data.get("location") or "").strip(), (data.get("notes") or "").strip(),
+            longitude, latitude,
         ),
     )
     db.commit()
@@ -233,10 +285,14 @@ def api_edit_house(hid):
     if not check_password():
         return jsonify({"error": "需要访问口令"}), 401
     db = get_db()
-    row = db.execute("SELECT id FROM houses WHERE id = ?", (hid,)).fetchone()
+    row = db.execute("SELECT * FROM houses WHERE id = ?", (hid,)).fetchone()
     if not row:
         return jsonify({"error": "小区不存在"}), 404
     data = request.get_json(silent=True) or {}
+    try:
+        longitude, latitude = _coordinates(data, row)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
     name = (data.get("name") or "").strip()
     if not name:
         return jsonify({"error": "小区名称不能为空"}), 400
@@ -245,7 +301,7 @@ def api_edit_house(hid):
         return jsonify({"error": f"小区「{name}」已存在"}), 409
     db.execute(
         "UPDATE houses SET region=?,name=?,property_company=?,property_fee=?,pros=?,cons=?,metro=?,metro_ok=?,"
-        "kindergarten=?,primary_school=?,middle_school=?,middle_fixed=?,car_free=?,location=?,notes=? WHERE id=?",
+        "kindergarten=?,primary_school=?,middle_school=?,middle_fixed=?,car_free=?,location=?,notes=?,longitude=?,latitude=? WHERE id=?",
         (
             (data.get("region") or "").strip(), name, (data.get("property_company") or "").strip(),
             (data.get("property_fee") or "").strip(), (data.get("pros") or "").strip(),
@@ -253,7 +309,7 @@ def api_edit_house(hid):
             1 if data.get("metro_ok") else 0, (data.get("kindergarten") or "").strip(),
             (data.get("primary_school") or "").strip(), (data.get("middle_school") or "").strip(),
             1 if data.get("middle_fixed") else 0, 1 if data.get("car_free") else 0,
-            (data.get("location") or "").strip(), (data.get("notes") or "").strip(), hid,
+            (data.get("location") or "").strip(), (data.get("notes") or "").strip(), longitude, latitude, hid,
         ),
     )
     db.commit()
